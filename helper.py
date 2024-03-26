@@ -1,4 +1,5 @@
 from ultralytics import YOLO
+from PIL import Image
 import time
 import streamlit as st
 import cv2
@@ -184,6 +185,26 @@ def play_webcam(conf, model):
         except Exception as e:
             st.sidebar.error("Error loading video: " + str(e))
 
+def resize_image(image, width=None, height=None):
+    # Carregar a imagem padrão
+    default_image_path = str(settings.DEFAULT_IMAGE)
+    default_image = Image.open(default_image_path)
+
+    # Definir altura máxima desejada em pixels
+    max_height = 400  # Altere este valor conforme necessário
+
+    # Obter proporções da imagem original
+    width, height = default_image.size
+    aspect_ratio = width / height
+
+    # Calcular largura proporcional com base na altura máxima
+    adjusted_width = int(max_height * aspect_ratio)
+
+    # Redimensionar a imagem
+    resized_image = default_image.resize((adjusted_width, max_height))
+
+    # Exibir a imagem redimensionada
+    st.image(resized_image, caption="Imagem padrão", use_column_width=True)
 
 def play_stored_video(conf, model):
     """
