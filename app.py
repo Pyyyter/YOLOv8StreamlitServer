@@ -2,13 +2,16 @@
 # Python In-built packages
 from pathlib import Path
 import PIL
-
+import cv2
+import numpy as np
+from lrp.yolo import YOLOv8LRP
 # External packages
 import streamlit as st
 
 # Local Modules
 import settings
 import helper
+import torchvision
 #endregion
 
 # Setting page layout
@@ -41,14 +44,15 @@ elif model_type == 'Segmentação':
 # Load Pre-trained ML Model
 try:
     model = helper.load_model(model_path)
+    lrp = YOLOv8LRP(model, power=2, eps=1e-05, device='cpu')
 except Exception as ex:
-    st.error(f"Não foi possível carregar o modelo. O caminho definido foi: {model_path}")
+    st.error(f"Erro carregando models")
     st.error(ex)
 
-st.sidebar.header("Configuração da fonte de detecção")
+st.sidebar.header("Selecione a fonte de dados")
 source_radio = st.sidebar.radio(
     "Selecionar fonte", settings.SOURCES_LIST)
-
+use_heatmap = st.sidebar.checkbox("Usar mapa de calor LRP", value=False)
 source_img = None
 # If image is selected
 if source_radio == settings.IMAGE:
@@ -63,7 +67,7 @@ if source_radio == settings.IMAGE:
                 default_image_path = str(settings.DEFAULT_IMAGE)
                 default_image = PIL.Image.open(default_image_path)
                 st.image(default_image_path, caption="Imagem padrão",
-                         use_column_width=True)
+                        use_column_width=True)
             else:
                 uploaded_image = PIL.Image.open(source_img)
                 st.image(source_img, caption="Imagem enviada",
@@ -78,24 +82,41 @@ if source_radio == settings.IMAGE:
             default_detected_image = PIL.Image.open(
                 default_detected_image_path)
             st.image(default_detected_image_path, caption='Resultado',
-                     use_column_width=True)
+                    use_column_width=True)
         else:
-            if st.sidebar.button('Processar imagem'):
-                res = model.predict(uploaded_image,
+            if use_heatmap:
+                if st.sidebar.button('Processar imagem'):
+                    
+                        desired_size = (512, 640)
+                        transform = torchvision.transforms.Compose([
+                            torchvision.transforms.Resize(desired_size),
+                            torchvision.transforms.ToTensor(),
+                        ])
+
+                        image = transform(uploaded_image).to('cpu').float()
+                        explanation_lrp = lrp.explain(image, contrastive=False).cpu()
+                        out_img2=explanation_lrp.detach().numpy()
+                        out_img2_normalized = (out_img2 - out_img2.min()) / (out_img2.max() - out_img2.min())
+                        scaled = (out_img2_normalized * 255).astype(np.uint8)
+                        st.image(scaled, caption='Resultado',
+                                use_column_width=True)
+            else:
+                if st.sidebar.button('Processar imagem'):
+                    res = model.predict(uploaded_image,
                                     conf=confidence
                                     )
-                boxes = res[0].boxes
-                res_plotted = res[0].plot()[:, :, ::-1]
-                st.image(res_plotted, caption='Resultado',
-                         use_column_width=True)
-                try:
-                    with st.expander("Resultado"):
-                        for box in boxes:
-                            st.write(box.data)
-                except Exception as ex:
-                    st.write("A imagem ainda não foi enviada!")
-                    st.write(ex)
-
+                    boxes = res[0].boxes
+                    res_plotted = res[0].plot()[:, :, ::-1]
+                    st.image(res_plotted, caption='Resultado',
+                            use_column_width=True)
+                    try:
+                        with st.expander("Resultado"):
+                            for box in boxes:
+                                st.write(box.data)
+                    except Exception as ex:
+                        st.write("A imagem ainda não foi enviada!")
+                        st.write(ex)
+                
 elif source_radio == settings.VIDEO:
     helper.play_stored_video(confidence, model)
 

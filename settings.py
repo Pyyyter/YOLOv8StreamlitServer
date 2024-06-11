@@ -41,7 +41,7 @@ VIDEOS_DICT = {
 
 # ML Model config
 MODEL_DIR = ROOT / 'assets/weights'
-DETECTION_MODEL = MODEL_DIR / 'hotspot.pt'
+DETECTION_MODEL = MODEL_DIR / 'photovoltaicModule.pt'
 SEGMENTATION_MODEL = MODEL_DIR / 'yolov8n-seg.pt'
 
 # Webcam

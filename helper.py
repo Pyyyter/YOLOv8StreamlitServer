@@ -1,11 +1,13 @@
 from ultralytics import YOLO
 from PIL import Image
+import torchvision
 import time
+from lrp.yolo import YOLOv8LRP
 import streamlit as st
 import cv2
 from pytube import YouTube
 import settings
-
+import numpy as np
 
 def load_model(model_path):
     """
@@ -20,7 +22,6 @@ def load_model(model_path):
     model = YOLO(model_path)
     return model
 
-
 def display_tracker_options():
     display_tracker = st.radio("Display Tracker", ('Yes', 'No'))
     is_display_tracker = True if display_tracker == 'Yes' else False
@@ -28,7 +29,6 @@ def display_tracker_options():
         tracker_type = st.radio("Tracker", ("bytetrack.yaml", "botsort.yaml"))
         return is_display_tracker, tracker_type
     return is_display_tracker, None
-
 
 def _display_detected_frames(conf, model, st_frame, image, is_display_tracking=None, tracker=None):
     """
@@ -58,11 +58,43 @@ def _display_detected_frames(conf, model, st_frame, image, is_display_tracking=N
     # # Plot the detected objects on the video frame
     res_plotted = res[0].plot()
     st_frame.image(res_plotted,
-                   caption='Detected Video',
-                   channels="BGR",
-                   use_column_width=True
-                   )
+                caption='Detected Video',
+                channels="BGR",
+                use_column_width=True
+                )
 
+def _display_detected_lrp(conf, model, st_frame, image, lrp_model, is_display_tracking=None, tracker=None):
+    """
+    Display the detected objects on a video frame using the YOLOv8 model.
+
+    Args:
+    - conf (float): Confidence threshold for object detection.
+    - model (YoloV8): A YOLOv8 object detection model.
+    - st_frame (Streamlit object): A Streamlit object to display the detected video.
+    - image (numpy array): A numpy array representing the video frame.
+    - is_display_tracking (bool): A flag indicating whether to display object tracking (default=None).
+
+    Returns:
+    None
+    """
+
+    # Resize the image to a standard size
+    desired_size = (512, 640)
+    transform = torchvision.transforms.Compose([
+        torchvision.transforms.Resize(desired_size),
+        torchvision.transforms.ToTensor(),
+    ])
+    image = transform(image).to('cpu').float()
+    explanation_lrp = lrp_model.explain(image, contrastive=False).cpu()
+    # # Plot the detected objects on the video frame
+    out_img2=explanation_lrp.detach().numpy()
+    arr_ = np.squeeze(out_img2)
+    # res_plotted = res[0].plot()
+    st_frame.image(arr_,
+                caption='Detected Video',
+                channels="BGR",
+                use_column_width=True
+                )
 
 def play_youtube_video(conf, model):
     """
@@ -93,18 +125,17 @@ def play_youtube_video(conf, model):
                 success, image = vid_cap.read()
                 if success:
                     _display_detected_frames(conf,
-                                             model,
-                                             st_frame,
-                                             image,
-                                             is_display_tracker,
-                                             tracker,
-                                             )
+                                            model,
+                                            st_frame,
+                                            image,
+                                            is_display_tracker,
+                                            tracker,
+                                            )
                 else:
                     vid_cap.release()
                     break
         except Exception as e:
             st.sidebar.error("Error loading video: " + str(e))
-
 
 def play_rtsp_stream(conf, model):
     """
@@ -131,12 +162,12 @@ def play_rtsp_stream(conf, model):
                 success, image = vid_cap.read()
                 if success:
                     _display_detected_frames(conf,
-                                             model,
-                                             st_frame,
-                                             image,
-                                             is_display_tracker,
-                                             tracker
-                                             )
+                                            model,
+                                            st_frame,
+                                            image,
+                                            is_display_tracker,
+                                            tracker
+                                            )
                 else:
                     vid_cap.release()
                     # vid_cap = cv2.VideoCapture(source_rtsp)
@@ -146,7 +177,6 @@ def play_rtsp_stream(conf, model):
         except Exception as e:
             vid_cap.release()
             st.sidebar.error("Error loading RTSP stream: " + str(e))
-
 
 def play_webcam(conf, model):
     """
@@ -172,12 +202,12 @@ def play_webcam(conf, model):
                 success, image = vid_cap.read()
                 if success:
                     _display_detected_frames(conf,
-                                             model,
-                                             st_frame,
-                                             image,
-                                             is_display_tracker,
-                                             tracker,
-                                             )
+                                            model,
+                                            st_frame,
+                                            image,
+                                            is_display_tracker,
+                                            tracker,
+                                            )
                 else:
                     vid_cap.release()
                     break
@@ -237,13 +267,13 @@ def play_stored_video(conf, model):
             while (vid_cap.isOpened()):
                 success, image = vid_cap.read()
                 if success:
-                    _display_detected_frames(conf,
-                                             model,
-                                             st_frame,
-                                             image,
-                                             is_display_tracker,
-                                             tracker
-                                             )
+                    _display_detected_lrp(conf,
+                                            model,
+                                            st_frame,
+                                            image,
+                                            is_display_tracker,
+                                            tracker
+                                            )
                 else:
                     vid_cap.release()
                     break
