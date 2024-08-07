@@ -30,14 +30,16 @@ st.sidebar.header("Ajuste de parâmetros")
 
 # Model Options
 model_type = st.sidebar.radio(
-    "Tarefa", ['Detecção', 'Segmentação'])
+    "Tarefa", ['Painel', 'Hotspot', 'Segmentação'])
 
 confidence = float(st.sidebar.slider(
     "Confiança", 25, 100, 40)) / 100
 
 # Selecting Detection Or Segmentation
-if model_type == 'Detecção':
-    model_path = Path(settings.DETECTION_MODEL)
+if model_type == 'Painel':
+    model_path = Path(settings.PANEL_DETECTION_MODEL)
+if model_type == 'Hotspot': 
+    model_path = Path(settings.HOTSPOT_DETECTION_MODEL)
 elif model_type == 'Segmentação':
     model_path = Path(settings.SEGMENTATION_MODEL)
 
